@@ -1,4 +1,4 @@
-#ifndef __objcache__
-#define __objcache__
+#ifndef __OBJCACHE__
+#define __OBJCACHE__
 
-#endif
+#endif // !__OBJCACHE__

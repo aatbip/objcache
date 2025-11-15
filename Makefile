@@ -1,42 +1,57 @@
 # Compiler to use
-CC = gcc 
+CC = gcc
 
 # Compiler flags
 CFLAGS = -Iinclude -Wall -g -MD
 
-# Source and build directories
+# Directories
 SRC_DIR = src
 BUILD_DIR = build
 INCLUDE_DIR = include
+TEST_DIR = test
 
-# Automatically find all .c files in src/
+# Source files
 SOURCES = $(wildcard $(SRC_DIR)/*.c)
+TEST_SOURCES = $(wildcard $(TEST_DIR)/*.c)
 
-# Convert source files to object files (e.g., src/objcache.c -> build/objcache.o)
+# Object files
 OBJECTS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SOURCES))
+TEST_OBJECTS = $(patsubst $(TEST_DIR)/%.c, $(BUILD_DIR)/%.o, $(TEST_SOURCES))
 
-# Dependency files for tracking headers
+# Dependency files
 DEPS = $(OBJECTS:.o=.d)
+TEST_DEPS = $(TEST_OBJECTS:.o=.d)
 
-# Name of the final executable
-EXEC = $(BUILD_DIR)/objcache
+# Names
+STATIC_LIB = $(BUILD_DIR)/objcache.a
+TEST_EXEC = $(BUILD_DIR)/objcache_test
 
-# Default target
-all: $(EXEC)
+# Default target: build static library
+all: $(STATIC_LIB)
 
-# Link object files into the executable
-$(EXEC): $(OBJECTS) | $(BUILD_DIR)
-	$(CC) $(OBJECTS) -o $@
+# Build static library from src/ objects
+$(STATIC_LIB): $(OBJECTS) | $(BUILD_DIR)
+	ar rcs $@ $^
 
-# Compile .c files into .o files, depend on objcache.h
+# Build test executable (library + test objects)
+test: $(TEST_EXEC)
+
+$(TEST_EXEC): $(OBJECTS) $(TEST_OBJECTS) | $(BUILD_DIR)
+	$(CC) $^ -o $@
+
+# Compile src/ .c files into .o
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile test/ .c files into .o
+$(BUILD_DIR)/%.o: $(TEST_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Create build directory if it doesn't exist
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-# Clean up generated files
+# Clean up
 clean:
 	rm -rf $(BUILD_DIR)
 
@@ -46,6 +61,6 @@ bear:
 
 # Include dependency files
 -include $(DEPS)
+-include $(TEST_DEPS)
 
-# Declare phony targets
-.PHONY: all clean bear
+.PHONY: all clean bear test
