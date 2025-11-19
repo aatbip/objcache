@@ -102,6 +102,7 @@ static void *get_obj(objc_cache_t *cache) {
   if (!slab || !cur_freebuf) {
     slab = create_new_slab(cache);
     slabctl = GET_SLABCTL(cache, slab);
+    cur_freebuf = slabctl->freebuf;
   }
 
   /*Update the freebuf entry in slabctl to point at the next buffer head*/
@@ -135,4 +136,9 @@ void *objc_cache_alloc(objc_cache_t *cache) {
   cache->c(obj, cache->size);
 
   return obj;
+}
+
+void objc_cache_destroy(objc_cache_t *cache) {
+  free(cache->free_slab);
+  free(cache);
 }
