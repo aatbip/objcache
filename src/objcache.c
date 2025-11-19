@@ -59,8 +59,8 @@ static void *create_new_slab(objc_cache_t *cache) {
   /*Slab is being created first time.*/
   if (!cache->free_slab) {
     /*Update next and prev pointers to NULL on the first slab creation*/
-    slabctl->next = NULL;
-    slabctl->prev = NULL;
+    slabctl->next = slabctl;
+    slabctl->prev = slabctl;
   } else { /* A new complete slab is being created when previous slab becomes empty
   i.e. all buffers allocated (slabctl->freebuf is NULL)*/
     objc_slabctl_t *prev_slab = cache->free_slab;
@@ -78,7 +78,7 @@ static void *create_new_slab(objc_cache_t *cache) {
   /*Initialize `ref_count`*/
   slabctl->ref_count = 0;
   /*Update the freebuf entry in slabctl to point at the head of bufctl.*/
-  slabctl->freebuf = ((objc_bufctl_t *)(slab + cache->size));
+  slabctl->freebuf = ((objc_bufctl_t *)((char *)slab + cache->size));
 
   /*Update `free_slab` entry of the current cache to point at the new slab.*/
   cache->free_slab = slab;
