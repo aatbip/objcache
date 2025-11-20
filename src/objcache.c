@@ -40,6 +40,7 @@ typedef struct objc_cache {
  * `objc_slabctl_t`.*/
 static void *create_new_slab(objc_cache_t *cache) {
   void *slab = malloc(PAGE_SIZE);
+  // posix_memalign(&slab, PAGE_SIZE, PAGE_SIZE);
   if (!slab)
     return NULL;
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
@@ -87,7 +88,11 @@ static void *create_new_slab(objc_cache_t *cache) {
   }
   /*new slab becomes the current partial one*/
   cache->free_slab = slab;
-
+  /*-------TEST CODE--------*/
+  static int count = 0;
+  count++;
+  printf("count: %d\n", count);
+  /*----------------------*/
   return slab;
 }
 
@@ -158,6 +163,8 @@ void *objc_cache_alloc(objc_cache_t *cache) {
 
   return obj;
 }
+
+void objc_free(objc_cache_t *cache, void *obj) { objc_bufctl_t *bufctl = (objc_bufctl_t *)(char *)obj + cache->size; }
 
 void objc_cache_destroy(objc_cache_t *cache) {
   free(cache->free_slab);
