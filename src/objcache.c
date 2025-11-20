@@ -10,7 +10,7 @@ typedef struct objc_bufctl {
 
 typedef struct objc_slabctl {
   int ref_count;
-  objc_bufctl_t *freebuf; // head of the bufctl
+  objc_bufctl_t *freebuf; // pointer to the bufctl
   struct objc_slabctl *next;
   struct objc_slabctl *prev;
 } objc_slabctl_t;
@@ -21,13 +21,14 @@ typedef struct objc_cache {
   int align;
   constructor c;
   destructor d;
-  objc_slabctl_t *free_slab;  // pointer to the slab
+  objc_slabctl_t *free_slab;  // pointer to the start of the slab
   unsigned short buffer_size; // size of obj + bufctl
   unsigned short total_buf;   // total number of buffers that fits in a slab
+  size_t slabctl_offset;      // offset where slabctl lives inside the page
+  unsigned short unused;      // unused bytes
 } objc_cache_t;
 
-#define GET_SLABCTL(cache, slab)                                                                                       \
-  slab ? ((objc_slabctl_t *)((char *)slab + (cache->total_buf * cache->buffer_size) - sizeof(objc_slabctl_t))) : NULL;
+#define GET_SLABCTL(cache, slab) ((objc_slabctl_t *)((char *)(slab) + (cache)->slabctl_offset))
 
 /*New slab has to be created in two cases:
  * i. When an object is being allocated for the first time. In this case, `cache->freebuf` is NULL since
@@ -41,46 +42,51 @@ static void *create_new_slab(objc_cache_t *cache) {
   void *slab = malloc(PAGE_SIZE);
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
 
-  /*fragmented bytes*/
-  // unsigned short unused =
-  //     (PAGE_SIZE - sizeof(objc_slabctl_t)) % (buffer_size);
+  char *start = (char *)slab;
+  char *end = start + cache->total_buf * cache->buffer_size;
 
-  /*Create a linked list of free buffers. bufctl->next points to the next buffer.*/
-  for (char *p = slab; p < (char *)slab + cache->total_buf * cache->buffer_size; p += cache->buffer_size) {
+  /*Create a linked list of bufctl*/
+  for (char *p = start; p < end; p += cache->buffer_size) {
     objc_bufctl_t *bufctl = (objc_bufctl_t *)(p + cache->size);
-    char *next_buf = p + cache->buffer_size;
-    if (next_buf >= (char *)slab + cache->total_buf * cache->buffer_size) {
+
+    char *next_buf = p + cache->buffer_size + cache->size;
+
+    if (next_buf >= end) {
       bufctl->next = NULL;
     } else {
       bufctl->next = (objc_bufctl_t *)next_buf;
     }
   }
 
-  /*Slab is being created first time.*/
-  if (!cache->free_slab) {
-    /*Update next and prev pointers to NULL on the first slab creation*/
-    slabctl->next = slabctl;
-    slabctl->prev = slabctl;
-  } else { /* A new complete slab is being created when previous slab becomes empty
-  i.e. all buffers allocated (slabctl->freebuf is NULL)*/
-    objc_slabctl_t *prev_slab = cache->free_slab;
-    /*Doubly linked list based updates -
-     * Update prev and next of the new complete slab*/
-    slabctl->prev = prev_slab;
-    /*Update next of the tail of doubly linked list to point to the head*/
-    slabctl->next = prev_slab->prev->next;
-    /*Update the next of the previous slab*/
-    prev_slab->next = slabctl;
-    /*Update the head of doubly linked list to point to the tail*/
-    prev_slab->next->prev = slabctl;
-  }
-
-  /*Initialize `ref_count`*/
+  /* Initialize slab metadata */
   slabctl->ref_count = 0;
-  /*Update the freebuf entry in slabctl to point at the head of bufctl.*/
-  slabctl->freebuf = ((objc_bufctl_t *)((char *)slab + cache->size));
+  slabctl->freebuf = ((objc_bufctl_t *)(start + cache->size));
 
-  /*Update `free_slab` entry of the current cache to point at the new slab.*/
+  if (!cache->free_slab) {
+    /*Slab is being created first time. Both next and prev points to slabctl
+     * because only there is only one slab at this point.*/
+    slabctl->next = slabctl->prev = slabctl;
+  } else {
+    /* A new complete slab is being created when previous slab becomes empty
+    i.e. all buffers allocated (slabctl->freebuf is NULL)*/
+
+    /*Create a doubly linked list of the slabs.*/
+    objc_slabctl_t *prev_slabctl = GET_SLABCTL(cache, cache->free_slab);
+    slabctl->next = prev_slabctl->next;
+    slabctl->prev = prev_slabctl;
+    prev_slabctl->next = slabctl;
+    if (prev_slabctl->prev == prev_slabctl) {
+      /*For second slab*/
+      prev_slabctl->prev = slabctl;
+    } else {
+      /*From third slab and onwards*/
+      slabctl->next->prev = slabctl;
+    }
+    static int count = 1;
+    count++;
+    printf("Slab count: %d\n", count);
+  }
+  /*new slab becomes the current partial one*/
   cache->free_slab = slab;
 
   return slab;
@@ -93,22 +99,22 @@ static void *get_obj(objc_cache_t *cache) {
 
   void *slab = cache->free_slab;
 
-  objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab); // slabctl can be NULL is slab is NULL
+  objc_slabctl_t *slabctl = slab ? GET_SLABCTL(cache, slab) : NULL; // slabctl can be NULL is slab is NULL
 
-  void *cur_freebuf = slabctl ? slabctl->freebuf : NULL;
-
-  /*If `slab` is NULL then that means slab is not yet created for the cache. Otherwise, if `cur_freebuf` is null that
-   * means the current slab is empty (all buffers allocated). So in both the cases, we create a new slab.*/
-  if (!slab || !cur_freebuf) {
+  /*If `slab` is NULL then that means slab is not yet created for the cache. Otherwise, if `slabctl->freebuf` is null
+   * that means the current slab is empty (all buffers allocated). So in both the cases, we create a new slab.*/
+  if (!slab || !slabctl->freebuf) {
     slab = create_new_slab(cache);
     slabctl = GET_SLABCTL(cache, slab);
-    cur_freebuf = slabctl->freebuf;
   }
 
-  /*Update the freebuf entry in slabctl to point at the next buffer head*/
-  slabctl->freebuf = ((objc_bufctl_t *)(cur_freebuf))->next;
-  void *obj = cur_freebuf - cache->size;
-  /*Update the ref_count to since an object is allocated*/
+  /*Get the current free bufctl*/
+  objc_bufctl_t *cur_freebuf = slabctl->freebuf;
+  /*Update freebuf to point to the next bufctl*/
+  slabctl->freebuf = cur_freebuf->next;
+
+  void *obj = (void *)((char *)cur_freebuf - cache->size);
+
   slabctl->ref_count++;
 
   return obj;
@@ -116,14 +122,23 @@ static void *get_obj(objc_cache_t *cache) {
 
 objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor c, destructor d) {
   objc_cache_t *cache = (objc_cache_t *)malloc(sizeof(*cache));
+
   cache->name = name;
   cache->size = size;
   cache->align = align;
   cache->c = c;
   cache->d = d;
-  cache->free_slab = NULL; // slab is not created yet
-  cache->buffer_size = cache->size + sizeof(objc_bufctl_t);
+  cache->free_slab = NULL; // NULL because slab is not created yet
+  cache->buffer_size = size + sizeof(objc_bufctl_t);
   cache->total_buf = (PAGE_SIZE - sizeof(objc_slabctl_t)) / (cache->buffer_size);
+
+  cache->unused = (PAGE_SIZE - sizeof(objc_slabctl_t)) % (cache->buffer_size);
+
+  cache->slabctl_offset = cache->total_buf * cache->buffer_size + cache->unused;
+
+  printf("cache: %zu\n unused: %d\n sizeof slabctl: %zu\n total buf: %d\n buffer size: %d\n offset: %zu\n",
+         sizeof(*cache), cache->unused, sizeof(objc_slabctl_t), cache->total_buf, cache->buffer_size,
+         cache->slabctl_offset);
 
   return cache;
 }
