@@ -140,9 +140,8 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
 
   cache->slabctl_offset = cache->total_buf * cache->buffer_size + cache->unused;
 
-  printf("cache: %zu\n unused: %d\n sizeof slabctl: %zu\n total buf: %d\n buffer size: %d\n offset: %zu\n",
-         sizeof(*cache), cache->unused, sizeof(objc_slabctl_t), cache->total_buf, cache->buffer_size,
-         cache->slabctl_offset);
+  printf("cache: %zu\nunused: %d\nsizeofslabctl: %zu\ntotal buf: %d\nbuffer size: %d\noffset: %zu\n", sizeof(*cache),
+         cache->unused, sizeof(objc_slabctl_t), cache->total_buf, cache->buffer_size, cache->slabctl_offset);
 
   return cache;
 }
@@ -163,4 +162,13 @@ void *objc_cache_alloc(objc_cache_t *cache) {
 void objc_cache_destroy(objc_cache_t *cache) {
   free(cache->free_slab);
   free(cache);
+}
+
+objc_cache_info_t get_cache_info(objc_cache_t *cache) {
+  objc_cache_info_t cache_info = {.cache = sizeof(*cache),
+                                  .unused = cache->unused,
+                                  .slabctl = sizeof(objc_slabctl_t),
+                                  .buffer_size = cache->buffer_size,
+                                  .total_buf = cache->total_buf};
+  return cache_info;
 }
