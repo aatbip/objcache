@@ -39,8 +39,11 @@ typedef struct objc_cache {
  * This function allocates `PAGE_SIZE` sized buffer and initializes all of the members of the struct type
  * `objc_slabctl_t`.*/
 static void *create_new_slab(objc_cache_t *cache) {
-  void *slab = malloc(PAGE_SIZE);
-  // posix_memalign(&slab, PAGE_SIZE, PAGE_SIZE);
+  void *slab;
+  /*Using posix_memalign for now to always align the slab in page sized units. Alignment is needed
+   * to calculate the base of the slab. This will be updated to use the `mmap` after I visit this syscall
+   * real soon!*/
+  posix_memalign(&slab, PAGE_SIZE, PAGE_SIZE);
   if (!slab)
     return NULL;
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
