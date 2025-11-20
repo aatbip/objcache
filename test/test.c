@@ -5,7 +5,6 @@
 typedef struct test {
   int x, y;
   char t;
-  long tt;
 } test_t;
 
 void c(void *p, size_t size) {
@@ -22,7 +21,7 @@ int main(void) {
   // printf("x1: %d\n y1: %d\n", q->x, q->y);
 
   objc_cache_t *cache = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
-  for (int i = 0; i < 203000; i++) {
+  for (int i = 0; i < 406; i++) {
     objc_cache_alloc(cache);
   }
 

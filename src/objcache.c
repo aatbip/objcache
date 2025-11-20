@@ -40,6 +40,8 @@ typedef struct objc_cache {
  * `objc_slabctl_t`.*/
 static void *create_new_slab(objc_cache_t *cache) {
   void *slab = malloc(PAGE_SIZE);
+  if (!slab)
+    return NULL;
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
 
   char *start = (char *)slab;
@@ -82,9 +84,6 @@ static void *create_new_slab(objc_cache_t *cache) {
       /*From third slab and onwards*/
       slabctl->next->prev = slabctl;
     }
-    static int count = 1;
-    count++;
-    printf("Slab count: %d\n", count);
   }
   /*new slab becomes the current partial one*/
   cache->free_slab = slab;
@@ -99,14 +98,16 @@ static void *get_obj(objc_cache_t *cache) {
 
   void *slab = cache->free_slab;
 
-  objc_slabctl_t *slabctl = slab ? GET_SLABCTL(cache, slab) : NULL; // slabctl can be NULL is slab is NULL
-
-  /*If `slab` is NULL then that means slab is not yet created for the cache. Otherwise, if `slabctl->freebuf` is null
-   * that means the current slab is empty (all buffers allocated). So in both the cases, we create a new slab.*/
-  if (!slab || !slabctl->freebuf) {
+  /*If `slab` is NULL then that means slab is not yet created for the cache. Otherwise, if
+   * `GET_SLABCTL(cache, slab)->freebuf` is null that means the current slab is empty (all buffers allocated). So in
+   * both the cases, we create a new slab.*/
+  if (!slab || !GET_SLABCTL(cache, slab)->freebuf) {
     slab = create_new_slab(cache);
-    slabctl = GET_SLABCTL(cache, slab);
+    if (!slab)
+      return NULL;
   }
+
+  objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
 
   /*Get the current free bufctl*/
   objc_bufctl_t *cur_freebuf = slabctl->freebuf;
@@ -122,6 +123,9 @@ static void *get_obj(objc_cache_t *cache) {
 
 objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor c, destructor d) {
   objc_cache_t *cache = (objc_cache_t *)malloc(sizeof(*cache));
+
+  if (!cache)
+    return NULL;
 
   cache->name = name;
   cache->size = size;
@@ -146,6 +150,9 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
 /*This function runs the constructor to allocate the object into the slab buffer.*/
 void *objc_cache_alloc(objc_cache_t *cache) {
   void *obj = get_obj(cache);
+
+  if (!obj || !cache)
+    return NULL;
 
   // run the constructor
   cache->c(obj, cache->size);
