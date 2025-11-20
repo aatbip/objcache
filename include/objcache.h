@@ -23,6 +23,6 @@ void *objc_cache_alloc(objc_cache_t *cache);
 
 void objc_cache_destroy(objc_cache_t *cache);
 
-objc_cache_info_t get_cache_info(objc_cache_t *cache);
+objc_cache_info_t objc_cache_info(objc_cache_t *cache);
 
 #endif // !__OBJCACHE__
