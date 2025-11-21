@@ -8,7 +8,7 @@ typedef struct objc_cache objc_cache_t;
 
 typedef struct objc_cache_info {
   int cache;                  // size of cache in bytes
-  uint8_t unused;             // size of unused bytes in current free slab
+  uint16_t unused;            // size of unused bytes in current free slab
   uint8_t slabctl;            // size of slabctl
   unsigned short buffer_size; // size of obj + bufctl
   unsigned short total_buf;   // total number of buffers that fits in a slab
