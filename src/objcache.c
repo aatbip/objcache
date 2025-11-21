@@ -101,7 +101,7 @@ static void *create_new_slab(objc_cache_t *cache) {
 }
 
 /*Go thorugh the slab doubly linked list and return slab base address if a partial slab is found.*/
-static void *find_partial_slab(objc_cache_t *cache, void *slab) {
+static inline void *find_partial_slab(objc_cache_t *cache, void *slab) {
   objc_slabctl_t *start = GET_SLABCTL(cache, slab);
   objc_slabctl_t *cur = start->next;
   while (cur != start) {
