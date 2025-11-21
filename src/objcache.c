@@ -114,6 +114,19 @@ static void *find_partial_slab(objc_cache_t *cache, void *slab) {
   return NULL;
 }
 
+/*Inserts the `v` slab after `u`.*/
+static inline void insert_slab_after(objc_slabctl_t *u, objc_slabctl_t *v) {
+  // unlink the slab
+  v->prev->next = v->next;
+  v->next->prev = v->prev;
+
+  // place the `v` slab after the `u` slab
+  v->next = u->next;
+  v->prev = u;
+  u->next->prev = v;
+  u->next = v;
+}
+
 /*Checks if a new slab has to be created or not and updates the `freebuf` and `ref_count` members
  * of the struct `objc_slabctl_t` and returns the free object (buffer) `obj` where object can be allocated
  * by running the constructor function.*/
@@ -209,13 +222,29 @@ void objc_free(objc_cache_t *cache, void *obj) {
     // do nothing if only one slab exists
     return;
 
+  /*If the slab becomes complete i.e. all buffers free*/
+  if (slabctl->ref_count == 0) {
+    objc_slabctl_t *cur = slabctl->next;
+
+    /*Iterate until `cur` points to the complete slab.*/
+    while (cur->ref_count > 0) {
+      cur = cur->next;
+    }
+
+    /*Previous slab to the complete slab is partial_slab.*/
+    objc_slabctl_t *partial_slab = cur->prev;
+    insert_slab_after(partial_slab, slabctl);
+    cache->free_slab = slab;
+    return;
+  }
+
   /*If more then one slab exists.*/
-  if (slabctl->next->freebuf != NULL && slabctl->next->ref_count > 0) {
-    /*If the next slab is not empty slab i.e. all buffer allocated and if the next slab
-     * is not also a complete slab i.e. all buffer free (in which case ref_count == 0), it
-     * means the next slab is a partial slab. So if the next slab is the partial slab
+  if (slabctl->next->freebuf != NULL) {
+    /*If the next slab is not empty slab i.e. all buffer allocated, it
+     * means the next slab is a partial/complete slab. So if the next slab is the partial slab
      * then we can point the current `cache->free_slab` to this slab from where obj is just
      * freed and rearranging the slab list is not necessary because partial slabs are together.*/
+
     cache->free_slab = slab;
     return;
   }
@@ -232,15 +261,7 @@ void objc_free(objc_cache_t *cache, void *obj) {
    * this last empty slab so that empty slab moves toward the head and partial/complete slabs
    * follow.*/
   objc_slabctl_t *empty_slab = cur->prev;
-  // unlink the slab
-  slabctl->prev->next = slabctl->next;
-  slabctl->next->prev = slabctl->prev;
-
-  // place the slab after the last empty slab
-  slabctl->next = empty_slab->next;
-  slabctl->prev = empty_slab;
-  empty_slab->next->prev = slabctl;
-  empty_slab->next = slabctl;
+  insert_slab_after(empty_slab, slabctl);
 
   cache->free_slab = slab;
 }
