@@ -205,21 +205,41 @@ void objc_free(objc_cache_t *cache, void *obj) {
 
   slabctl->ref_count--;
 
-  if (slabctl->next != slabctl) {
-    /*If more then one slab exists.*/
-    if (slabctl->next->freebuf != NULL & slabctl->next->ref_count > 0) { // complete slab check might not needed?
-      /*If the next slab is not empty slab i.e. all buffer allocated and if the next slab
-       * is not also a complete slab i.e. all buffer free (in which case ref_count == 0), it
-       * means the next slab is a partial slab. So if the next buffer is the partial slab
-       * then we can point the current `cache->free_slab` to this slab from where obj is just
-       * freed.*/
-      cache->free_slab = slab;
-    }
-    if (slabctl->next->freebuf == NULL) {
-      /*If the next slab is empty slab i.e. all buffer allocated then shift it towards the head of the
-       * list.*/
-    }
+  if (slabctl->next == slabctl)
+    // do nothing if only one slab exists
+    return;
+
+  /*If more then one slab exists.*/
+  if (slabctl->next->freebuf != NULL && slabctl->next->ref_count > 0) { // complete slab check might not needed?
+    /*If the next slab is not empty slab i.e. all buffer allocated and if the next slab
+     * is not also a complete slab i.e. all buffer free (in which case ref_count == 0), it
+     * means the next slab is a partial slab. So if the next buffer is the partial slab
+     * then we can point the current `cache->free_slab` to this slab from where obj is just
+     * freed.*/
+    cache->free_slab = slab;
+    return;
   }
+  objc_slabctl_t *cur = slabctl->next;
+  /*Iterate until a partial or complete slab is found.*/
+  while (cur->freebuf != NULL) {
+    cur = cur->next;
+  }
+  /*If cur is the partial/complete slab then `cur->prev` is the last empty slab. We need to
+   * rearrange the next and prev pointers of the `slabctl` (from which obj is being freed) with
+   * this last empty slab so that empty slab moves toward the head and partial/complete slabs
+   * follow.*/
+  objc_slabctl_t *empty_slab = cur->prev;
+  // unlink the slab
+  slabctl->prev->next = slabctl->next;
+  slabctl->next->prev = slabctl->prev;
+
+  // place the slab after the last empty slab
+  slabctl->next = empty_slab->next;
+  slabctl->prev = empty_slab;
+  empty_slab->next->prev = slabctl;
+  empty_slab->next = slabctl;
+
+  cache->free_slab = slab;
 }
 
 /*This function is incomplete!!*/
