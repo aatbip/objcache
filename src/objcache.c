@@ -179,15 +179,12 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
   cache->c = c;
   cache->d = d;
   cache->free_slab = NULL; // NULL because slab is not created yet
-  cache->buffer_size = size + sizeof(objc_bufctl_t);
+  cache->buffer_size = align > (size + sizeof(objc_bufctl_t)) ? align : (size + sizeof(objc_bufctl_t));
   cache->total_buf = (PAGE_SIZE - sizeof(objc_slabctl_t)) / (cache->buffer_size);
 
   cache->unused = (PAGE_SIZE - sizeof(objc_slabctl_t)) % (cache->buffer_size);
 
   cache->slabctl_offset = cache->total_buf * cache->buffer_size + cache->unused;
-
-  printf("cache: %zu\nunused: %d\nsizeofslabctl: %zu\ntotal buf: %d\nbuffer size: %d\noffset: %zu\n", sizeof(*cache),
-         cache->unused, sizeof(objc_slabctl_t), cache->total_buf, cache->buffer_size, cache->slabctl_offset);
 
   return cache;
 }

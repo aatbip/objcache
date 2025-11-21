@@ -20,7 +20,7 @@ int main(void) {
   // test_t *q = (test_t *)objc_cache_alloc(cache);
   // printf("x1: %d\n y1: %d\n", q->x, q->y);
 
-  objc_cache_t *cache = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
+  objc_cache_t *cache = objc_cache_create("rand", sizeof(test_t), 1500, c, NULL);
 
   for (int i = 0; i < 407; i++) {
     objc_cache_alloc(cache);
@@ -28,9 +28,9 @@ int main(void) {
 
   objc_cache_destroy(cache);
 
-  // objc_cache_info_t cache_info = objc_cache_info(cache);
+  objc_cache_info_t cache_info = objc_cache_info(cache);
 
-  // printf("cache: %d\nunused: %d\nsizeof slabctl: %d\ntotal buf: %d\nbuffer size: %d\n", cache_info.cache,
-  //        cache_info.unused, cache_info.slabctl, cache_info.total_buf, cache_info.buffer_size);
+  printf("cache: %d\nunused: %d\nsizeof slabctl: %d\ntotal buf: %d\nbuffer size: %d\n", cache_info.cache,
+         cache_info.unused, cache_info.slabctl, cache_info.total_buf, cache_info.buffer_size);
   return 0;
 }
