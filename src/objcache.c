@@ -183,6 +183,7 @@ void objc_free(objc_cache_t *cache, void *obj) {
   cache->free_slab = slab;
 }
 
+/*This function is incomplete!!*/
 void objc_cache_destroy(objc_cache_t *cache) {
   free(cache->free_slab);
   free(cache);
