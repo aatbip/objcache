@@ -167,7 +167,21 @@ void *objc_cache_alloc(objc_cache_t *cache) {
   return obj;
 }
 
-void objc_free(objc_cache_t *cache, void *obj) { objc_bufctl_t *bufctl = (objc_bufctl_t *)(char *)obj + cache->size; }
+void objc_free(objc_cache_t *cache, void *obj) {
+  objc_bufctl_t *bufctl = (objc_bufctl_t *)(char *)obj + cache->size;
+  /*Get slab base address using bit mask*/
+  void *slab = ((void *)((uintptr_t)(obj) & ~(PAGE_SIZE - 1)));
+  objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
+
+  /*Put the `bufctl` of the freed `obj` back in the free linked list*/
+  objc_bufctl_t *temp_bufctl = slabctl->freebuf;
+  slabctl->freebuf = bufctl;
+  bufctl->next = temp_bufctl;
+
+  slabctl->ref_count--;
+
+  cache->free_slab = slab;
+}
 
 void objc_cache_destroy(objc_cache_t *cache) {
   free(cache->free_slab);
