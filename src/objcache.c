@@ -205,7 +205,21 @@ void objc_free(objc_cache_t *cache, void *obj) {
 
   slabctl->ref_count--;
 
-  cache->free_slab = slab;
+  if (slabctl->next != slabctl) {
+    /*If more then one slab exists.*/
+    if (slabctl->next->freebuf != NULL & slabctl->next->ref_count > 0) { // complete slab check might not needed?
+      /*If the next slab is not empty slab i.e. all buffer allocated and if the next slab
+       * is not also a complete slab i.e. all buffer free (in which case ref_count == 0), it
+       * means the next slab is a partial slab. So if the next buffer is the partial slab
+       * then we can point the current `cache->free_slab` to this slab from where obj is just
+       * freed.*/
+      cache->free_slab = slab;
+    }
+    if (slabctl->next->freebuf == NULL) {
+      /*If the next slab is empty slab i.e. all buffer allocated then shift it towards the head of the
+       * list.*/
+    }
+  }
 }
 
 /*This function is incomplete!!*/
