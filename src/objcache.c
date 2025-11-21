@@ -56,12 +56,12 @@ static void *create_new_slab(objc_cache_t *cache) {
   for (char *p = start; p < end; p += cache->buffer_size) {
     objc_bufctl_t *bufctl = (objc_bufctl_t *)(p + cache->size);
 
-    char *next_buf = p + cache->buffer_size + cache->size;
+    char *next_bufctl = p + cache->buffer_size + cache->size;
 
-    if (next_buf >= end) {
+    if (next_bufctl >= end) {
       bufctl->next = NULL;
     } else {
-      bufctl->next = (objc_bufctl_t *)next_buf;
+      bufctl->next = (objc_bufctl_t *)next_bufctl;
     }
   }
 
@@ -163,6 +163,7 @@ static void *get_obj(objc_cache_t *cache) {
   void *obj = (void *)((char *)cur_freebuf - cache->size);
 
   slabctl->ref_count++;
+  printf("ref_count: %d\n", slabctl->ref_count);
 
   return obj;
 }
