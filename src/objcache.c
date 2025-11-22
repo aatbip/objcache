@@ -64,11 +64,7 @@ static void *create_new_slab(objc_cache_t *cache) {
   }
   /*new slab becomes the current partial one*/
   cache->free_slab = slab;
-  /*-------TEST CODE--------*/
-  static int count = 0;
-  count++;
-  printf("count: %d\n", count);
-  /*----------------------*/
+  cache->slab_count++;
   return slab;
 }
 
@@ -157,6 +153,7 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
   cache->unused = (PAGE_SIZE - sizeof(objc_slabctl_t)) % (cache->buffer_size);
 
   cache->slabctl_offset = cache->total_buf * cache->buffer_size + cache->unused;
+  cache->free_slab = 0;
 
   return cache;
 }
@@ -249,6 +246,8 @@ objc_cache_info_t objc_cache_info(objc_cache_t *cache) {
                                   .unused = cache->unused,
                                   .slabctl = sizeof(objc_slabctl_t),
                                   .buffer_size = cache->buffer_size,
-                                  .total_buf = cache->total_buf};
+                                  .total_buf = cache->total_buf,
+                                  .slab_count = cache->slab_count};
+
   return cache_info;
 }

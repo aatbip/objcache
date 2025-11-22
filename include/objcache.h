@@ -12,6 +12,7 @@ typedef struct objc_cache_info {
   uint8_t slabctl;            // size of slabctl
   unsigned short buffer_size; // size of obj + bufctl
   unsigned short total_buf;   // total number of buffers that fits in a slab
+  unsigned short slab_count;  // number of slabs created in the cache
 } objc_cache_info_t;
 
 typedef void (*constructor)(void *, size_t);

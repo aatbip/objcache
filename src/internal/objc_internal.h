@@ -35,6 +35,7 @@ typedef struct objc_cache {
   unsigned short total_buf;   // total number of buffers that fits in a slab
   size_t slabctl_offset;      // offset where slabctl lives inside the page
   unsigned short unused;      // unused bytes
+  unsigned short slab_count;  // number of slabs created in the cache
 } objc_cache_t;
 
 #define GET_SLABCTL(cache, slab) ((objc_slabctl_t *)((char *)(slab) + (cache)->slabctl_offset))

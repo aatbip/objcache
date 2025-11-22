@@ -1,5 +1,6 @@
 #include "objc_internal.h"
 #include "objcache.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -14,32 +15,40 @@ void c(void *p, size_t size) {
   q->y = 22;
 }
 
-void create_multiple_slabs(objc_cache_t *cache, objc_cache_info_t cache_info);
+static void test_create_multiple_slabs(objc_cache_t *cache);
+static void test_slab_list(objc_cache_t *cache);
 
 int main(void) {
   objc_cache_t *cache = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
-  objc_cache_info_t cache_info = objc_cache_info(cache);
 
   printf("--------------------------\n"
+         "%-18s %5zu B\n"
          "%-18s %5d B\n"
-         "%-18s %5d B\n"
-         "%-18s %5d B\n"
+         "%-18s %5zu B\n"
          "%-18s %5d  \n"
          "%-18s %5d B\n"
+         "%-18s %5d  \n"
          "--------------------------\n",
-         "Size of cache:", cache_info.cache, "Unused:", cache_info.unused, "Size of slabctl:", cache_info.slabctl,
-         "Total buf:", cache_info.total_buf, "Size of each buf:", cache_info.buffer_size);
+         "Size of cache:", sizeof(*cache), "Unused:", cache->unused, "Size of slabctl:", sizeof(objc_slabctl_t),
+         "Total buf:", cache->total_buf, "Size of each buf:", cache->buffer_size, "Slab count:", cache->slab_count);
+
+  test_create_multiple_slabs(cache);
 
   return 0;
 }
 
-/*Allocates object for `cache_info.total_buf * 3 + 1` times i.e. 4 slabs will be created which will form
+/*Allocates object for `cache_info.total_buf * i + 1` times i.e. 4 slabs will be created which will form
  * a circular doubly linked list.
  * <-- SLAB 1 <--> SLAB 2 <--> SLAB 3 <--> SLAB 4 -->
  * where, all are empty slabs except for SLAB 4 where only 1 object is allocated.
  * */
-void create_multiple_slabs(objc_cache_t *cache, objc_cache_info_t cache_info) {
-  for (int i = 0; i < (cache_info.total_buf * 3 + 1); i++) {
+static void test_create_multiple_slabs(objc_cache_t *cache) {
+  uint8_t t = 3;
+  for (int i = 0; i < (cache->total_buf * t + 1); i++) {
     objc_cache_alloc(cache);
   }
+  unsigned short slab_count = cache->slab_count;
+  // slab count should be t + 1
+  assert(slab_count == t + 1);
+  objc_cache_destroy(cache);
 }
