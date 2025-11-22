@@ -21,7 +21,7 @@ typedef struct objc_cache {
   int align;
   constructor c;
   destructor d;
-  objc_slabctl_t *free_slab;  // pointer to the start of the slab
+  void *free_slab;            // pointer to the start of the slab
   unsigned short buffer_size; // size of obj + bufctl
   unsigned short total_buf;   // total number of buffers that fits in a slab
   size_t slabctl_offset;      // offset where slabctl lives inside the page
