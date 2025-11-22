@@ -7,6 +7,8 @@
 #include <stdlib.h>
 
 #define PAGE_SIZE 4 * 1024 // 4K
+#define GET_SLABCTL(cache, slab) ((objc_slabctl_t *)((char *)(slab) + (cache)->slabctl_offset))
+#define GET_SLABBASE(ptr) ((void *)((uintptr_t)(ptr) & ~(PAGE_SIZE - 1)))
 
 typedef struct objc_bufctl {
   void *next;
@@ -37,8 +39,5 @@ typedef struct objc_cache {
   unsigned short unused;      // unused bytes
   unsigned short slab_count;  // number of slabs created in the cache
 } objc_cache_t;
-
-#define GET_SLABCTL(cache, slab) ((objc_slabctl_t *)((char *)(slab) + (cache)->slabctl_offset))
-#define GET_SLABBASE(ptr) ((void *)((uintptr_t)(ptr) & ~(PAGE_SIZE - 1)))
 
 #endif // !__OBJC_INTERNAL__

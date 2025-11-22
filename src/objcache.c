@@ -16,8 +16,8 @@ static void *create_new_slab(objc_cache_t *cache) {
   /*Using posix_memalign for now to always align the slab in page sized units. Alignment is needed
    * to calculate the base of the slab. This will be updated to use the `mmap` after I visit this syscall
    * real soon!*/
-  posix_memalign(&slab, PAGE_SIZE, PAGE_SIZE);
-  if (!slab)
+  int ch = posix_memalign(&slab, PAGE_SIZE, PAGE_SIZE);
+  if (ch != 0)
     return NULL;
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
 
@@ -153,7 +153,7 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
   cache->unused = (PAGE_SIZE - sizeof(objc_slabctl_t)) % (cache->buffer_size);
 
   cache->slabctl_offset = cache->total_buf * cache->buffer_size + cache->unused;
-  cache->free_slab = 0;
+  cache->slab_count = 0;
 
   return cache;
 }
