@@ -250,7 +250,7 @@ void objc_free(objc_cache_t *cache, void *obj) {
    * slab is found then get the last empty slab to arrange all partial slabs after it.*/
   objc_slabctl_t *cur = slabctl->next;
   /*Iterate until a partial or complete slab is found.*/
-  while (cur->freebuf != NULL) {
+  while (cur->freebuf == NULL) {
     cur = cur->next;
   }
   /*If cur is the partial/complete slab then `cur->prev` is the last empty slab. We need to
