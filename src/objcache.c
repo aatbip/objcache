@@ -6,6 +6,11 @@
 
 typedef struct objc_bufctl {
   void *next;
+  /* For now `constructed` is `uint8_t` which will be changed to bitmap or other better
+   * method later for optimized memory uses.
+   * `constructed` state is toggled 1 if object is first constructed. This is to check if
+   * object is in constructed state during re-allocation after freeing.*/
+  uint8_t constructed;
 } objc_bufctl_t;
 
 typedef struct objc_slabctl {
@@ -192,13 +197,16 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
 /*This function runs the constructor to allocate the object into the slab buffer.*/
 void *objc_cache_alloc(objc_cache_t *cache) {
   void *obj = get_obj(cache);
+  objc_bufctl_t *bufctl = ((objc_bufctl_t *)((char *)obj + cache->size));
 
   if (!obj || !cache)
     return NULL;
 
-  // run the constructor
-  cache->c(obj, cache->size);
-
+  if (bufctl->constructed != 1) {
+    // run the constructor if it was not ran before
+    cache->c(obj, cache->size);
+  }
+  bufctl->constructed = 1;
   return obj;
 }
 
