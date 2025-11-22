@@ -1,3 +1,4 @@
+#include "objc_internal.h"
 #include "objcache.h"
 #include <stdio.h>
 #include <stdlib.h>

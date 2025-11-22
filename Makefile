@@ -1,14 +1,15 @@
 # Compiler to use
 CC = gcc
 
-# Compiler flags
-CFLAGS = -Iinclude -Wall -g -MD
-
 # Directories
 SRC_DIR = src
 BUILD_DIR = build
 INCLUDE_DIR = include
+INTERNAL_DIR = src/internal
 TEST_DIR = test
+
+# Compiler flags
+CFLAGS = -I${INCLUDE_DIR} -I${INTERNAL_DIR} -Wall -g -MD
 
 # Source files
 SOURCES = $(wildcard $(SRC_DIR)/*.c)

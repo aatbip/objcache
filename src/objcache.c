@@ -1,5 +1,5 @@
 #include "objcache.h"
-#include "internal/objc_internal.h"
+#include "objc_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 
