@@ -163,7 +163,6 @@ static void *get_obj(objc_cache_t *cache) {
   void *obj = (void *)((char *)cur_freebuf - cache->size);
 
   slabctl->ref_count++;
-  printf("ref_count: %d\n", slabctl->ref_count);
 
   return obj;
 }
@@ -204,7 +203,7 @@ void *objc_cache_alloc(objc_cache_t *cache) {
 }
 
 void objc_free(objc_cache_t *cache, void *obj) {
-  objc_bufctl_t *bufctl = (objc_bufctl_t *)(char *)obj + cache->size;
+  objc_bufctl_t *bufctl = (objc_bufctl_t *)((char *)obj + cache->size);
   /*Get slab base address using bit mask*/
   void *slab = GET_SLABBASE(obj);
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);

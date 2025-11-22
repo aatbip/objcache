@@ -21,10 +21,24 @@ int main(void) {
   // printf("x1: %d\n y1: %d\n", q->x, q->y);
 
   objc_cache_t *cache = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
-
-  for (int i = 0; i < 203; i++) {
-    objc_cache_alloc(cache);
+  test_t *temp;
+  for (int i = 0; i < 435; i++) {
+    test_t *p = (test_t *)objc_cache_alloc(cache);
+    if (i == 0) {
+      temp = p;
+    }
   }
+  objc_free(cache, temp);
+  printf("temp addr: %p\n", temp);
+
+  // test_t *p = (test_t *)objc_cache_alloc(cache);
+  // printf("addr p: %p\n", p);
+  // objc_cache_alloc(cache);
+  // objc_cache_alloc(cache);
+  // objc_cache_alloc(cache);
+  // objc_free(cache, p);
+  // test_t *q = (test_t *)objc_cache_alloc(cache);
+  // printf("addr q: %p\n", q);
 
   objc_cache_destroy(cache);
 
