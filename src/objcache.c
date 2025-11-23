@@ -35,6 +35,8 @@ static void *create_new_slab(objc_cache_t *cache) {
     } else {
       bufctl->next = (objc_bufctl_t *)next_bufctl;
     }
+    /*Initialize the constructed state.*/
+    bufctl->constructed = 0;
   }
 
   /* Initialize slab metadata */
