@@ -17,7 +17,7 @@ static void *create_new_slab(objc_cache_t *cache) {
    * to calculate the base of the slab. This will be updated to use the `mmap` after I visit this syscall
    * real soon!*/
   int ch = posix_memalign(&slab, PAGE_SIZE, PAGE_SIZE);
-  if (ch != 0)
+  if (ch != 0 || slab == NULL)
     return NULL;
   objc_slabctl_t *slabctl = GET_SLABCTL(cache, slab);
 
@@ -131,6 +131,7 @@ static void *get_obj(objc_cache_t *cache) {
   void *obj = (void *)((char *)cur_freebuf - cache->size);
 
   slabctl->ref_count++;
+  cache->free_slab = slab;
 
   return obj;
 }
@@ -187,29 +188,28 @@ void objc_free(objc_cache_t *cache, void *obj) {
 
   slabctl->ref_count--;
 
+  /*If all buffers from the slab gets freed.*/
+  if (slabctl->ref_count == 0) {
+    objc_slabctl_t *cur = slabctl->next;
+    while (cur != slabctl) {
+      /*If there is partial slab present in the cache then put this complete slab
+       * after partial slab. Otherwise continue.*/
+      if (cur->ref_count > 0 && cur->ref_count < cache->total_buf) {
+        insert_slab_after(cur, slabctl);
+        cache->free_slab = GET_SLABBASE(cur);
+        return;
+      }
+      cur = cur->prev;
+    }
+  }
+
   if (slabctl->next == slabctl)
     // do nothing if only one slab exists
     return;
 
-  /*If the slab becomes complete i.e. all buffers free*/
-  if (slabctl->ref_count == 0) {
-    objc_slabctl_t *cur = slabctl->next;
-
-    /*Iterate until `cur` points to the complete slab.*/
-    while (cur->ref_count > 0) {
-      cur = cur->next;
-    }
-
-    /*Previous slab to the complete slab is partial_slab.*/
-    objc_slabctl_t *partial_slab = cur->prev;
-    insert_slab_after(partial_slab, slabctl);
-    cache->free_slab = slab;
-    return;
-  }
-
   /*If more then one slab exists.*/
   if (slabctl->next->freebuf != NULL) {
-    /*If the next slab is not empty slab i.e. all buffer allocated, it
+    /*If the next slab is not empty slab (all buffer allocated), it
      * means the next slab is a partial/complete slab. So if the next slab is the partial slab
      * then we can point the current `cache->free_slab` to this slab from where obj is just
      * freed and rearranging the slab list is not necessary because partial slabs are together.*/
