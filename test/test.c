@@ -193,4 +193,5 @@ static void test_slab_list(objc_cache_t *cache) {
   printf("test_slab_list() success\n");
   objc_printf(cache);
   objc_cache_destroy(cache);
+  free(obj_slab1);
 }

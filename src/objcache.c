@@ -239,7 +239,27 @@ void objc_free(objc_cache_t *cache, void *obj) {
 
 /*This function is incomplete!!*/
 void objc_cache_destroy(objc_cache_t *cache) {
-  free(cache->free_slab);
+  if (!cache->free_slab) {
+    free(cache);
+    return;
+  }
+
+  objc_slabctl_t *start = GET_SLABCTL(cache, cache->free_slab);
+  objc_slabctl_t *cur = start->next;
+
+  // Break circularity
+  start->prev->next = NULL;
+  start->prev = NULL;
+
+  // Free all slabs
+  while (cur) {
+    objc_slabctl_t *next = cur->next;
+    free(GET_SLABBASE(cur));
+    cur = next;
+  }
+
+  // Free starting slab
+  free(GET_SLABBASE(start));
   free(cache);
 }
 
