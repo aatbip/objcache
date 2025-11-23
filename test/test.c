@@ -64,11 +64,16 @@ static void test_create_multiple_slabs(objc_cache_t *cache) {
  * freeing object of the empty/partial slab.*/
 static void test_slab_list(objc_cache_t *cache) {
   uint8_t t = 3;
-  void *obj_first;
   void *obj_last;
+  void **obj_slab1 = malloc(cache->total_buf * sizeof(void *));
+  void *obj_first;
   // allocate objects which creates `t` slabs
   for (int i = 0; i < (cache->total_buf * t); i++) {
     void *p = objc_cache_alloc(cache);
+
+    if (i < cache->total_buf) {
+      obj_slab1[i] = p;
+    }
 
     /*Save the pointer to the first allocated object which belongs to the
      * 1st slab.*/
@@ -108,6 +113,82 @@ static void test_slab_list(objc_cache_t *cache) {
     assert(cur->freebuf == NULL);
     cur = cur->prev;
   } while (cur != cur_slabctl);
+
+  /*Freeing an object from empty slab should link the slab to the tail because empty slabs reside in the beginning of
+   * the list then comes partial slabs followed by complete slabs.*/
+  objc_free(cache, obj_first);
+  // Slab from which object was just freed to become partial slab
+  objc_slabctl_t *partial_slab = GET_SLABCTL(cache, obj_first);
+  /*If the slab from where object was just freed is moved to the tail then the previous slabs
+   * should be empty slab which can also be verified if ref_count == total_buf.*/
+  assert(partial_slab->prev->ref_count == cache->total_buf);
+  assert(partial_slab->prev->prev->ref_count == cache->total_buf);
+  /*`freebuf` shouldn't be NULL because an object is just freed.*/
+  assert(partial_slab->freebuf != NULL);
+
+  /*If partial/complete slab exists then new slab shouldn't be created during new allocations. Allocator should first
+   * search for the partial/complete slab and use it.*/
+  void *newobj = objc_cache_alloc(cache);
+  /*`newobj` address and `obj_first` address should be same if allocation has happened in the partial slab free
+   * buffer. Slab count should also not change from `t`.*/
+  assert(newobj == obj_first);
+  assert(cache->slab_count == t);
+  /*`freebuf` should be NULL because an object is just allocated.*/
+  assert(partial_slab->freebuf == NULL);
+
+  /*Allocating again should create a new slab since no partial/complete slabs are remaining.*/
+  objc_cache_alloc(cache);
+  assert(cache->slab_count == t + 1);
+  /*Now `cache->freeslab` should point at this new slab and it should have `ref_count=1`*/
+  assert(GET_SLABCTL(cache, cache->free_slab)->ref_count == 1);
+
+  /* Cache structure at this point -
+   *
+   * --------      ---------      ---------        ----------
+   *  SLAB 1  <-->   SLAB 2  <-->   SLAB 3   <-->    SLAB 4
+   * --------      ---------      ---------        ----------
+   *                                               ^
+   *                                               '
+   *                                               '
+   *                                               `- cache->free_slab
+   * SLAB 1, SLAB 2 and SLAB 3 are empty.
+   * SLAB 4 is partial slab with ref_count = 1 and cache->free_slab points at SLAB 4.
+   *
+   */
+
+  /*Free objc_slab1[0] which belongs to SLAB 3 in the list now. Recall, SLAB 3 moved to the tail from the head when
+   * an object from the slab was freed earlier in objc_free(cache, obj_first); */
+  objc_free(cache, obj_slab1[0]);
+  /*Now `cache->free_slab` should point to the base of SLAB 3 i.e. obj_slab1[0].*/
+  assert(cache->free_slab == obj_slab1[0]);
+  /* Cache structure at this point -
+   *
+   * --------      ---------      ---------        ----------
+   *  SLAB 1  <-->   SLAB 2  <-->   SLAB 3   <-->    SLAB 4
+   * --------      ---------      ---------        ----------
+   *                              ^
+   *                              '
+   *                              '
+   *                              `- cache->free_slab
+   * SLAB 1, SLAB 2 are empty.
+   * SLAB 3 is partial slab with only one free_buf left and cache->free_slab points at SLAB 3.
+   * SLAB 4 is partial slab with ref_count = 1.
+   *
+   */
+
+  /*Allocates in SLAB 3 because it has one free_buf left.*/
+  objc_cache_alloc(cache);
+  /*Allocates in SLAB 4 and makes ref_count = 2.*/
+  objc_cache_alloc(cache);
+  assert(GET_SLABCTL(cache, cache->free_slab)->ref_count == 2);
+
+  /*Freeing all objects of the slab should bring it to the tail since complete slab (i.e. all objects free) resides
+   * towards the tail.*/
+  for (int i = 0; i < cache->total_buf; i++) {
+    objc_free(cache, obj_slab1[i]);
+  }
+  assert(GET_SLABCTL(cache, cache->free_slab)->next->ref_count == 0);
+  assert(GET_SLABBASE(GET_SLABCTL(cache, cache->free_slab)->next) == obj_slab1[0]);
 
   printf("test_slab_list() success\n");
   objc_printf(cache);
