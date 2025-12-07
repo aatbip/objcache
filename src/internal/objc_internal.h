@@ -10,7 +10,7 @@
 #define GET_SLABCTL(cache, slab) ((objc_slabctl_t *)((char *)(slab) + (cache)->slabctl_offset))
 #define GET_SLABBASE(ptr) ((void *)((uintptr_t)(ptr) & ~(PAGE_SIZE - 1)))
 
-typedef struct objc_bufctl {
+typedef struct __attribute__((__packed__)) objc_bufctl {
   void *next;
   /* For now `constructed` is `uint8_t` which will be changed to bitmap or other better
    * method later for optimized memory uses.
