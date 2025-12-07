@@ -7,13 +7,11 @@ I have been interested to write a memory allocator for some time and finally tho
 Jeff Bonwick. This is my basic attempt to implementing some of the very interesting ideas presented in the paper such as object caching for learning purpose. 
 The allocator is written in the userspace for the userspace programs that has to frequently allocate and free many objects of same type.
 
-Features that are yet to be worked on which I will be writing over the next few weeks: 
+Features/optimizations that are yet to be worked on which I will be writing over the next few weeks: 
+* Optimize the `constructed` flag type in `objc_bufctl` struct by using a bit map
 * Slab coloring
 * Large object optimization and small object validations
 * Memory reclamation 
-
-***There definitely are things that might not fully work well which I might not even be aware of. There might also be things that could have been done
-in a better way.***
 
 ## Design
 A cache represents a collection of contiguous, page aligned memory blocks. 
