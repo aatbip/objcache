@@ -1,5 +1,5 @@
-#ifndef __OBJCACHE__
-#define __OBJCACHE__
+#ifndef OBJCACHE_H
+#define OBJCACHE_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -28,4 +28,4 @@ void objc_cache_destroy(objc_cache_t *cache);
 
 objc_cache_info_t objc_cache_info(objc_cache_t *cache);
 
-#endif // !__OBJCACHE__
+#endif // !OBJCACHE_H

@@ -1,5 +1,5 @@
-#ifndef __OBJC_INTERNAL__
-#define __OBJC_INTERNAL__
+#ifndef OBJC_INTERNAL_H
+#define OBJC_INTERNAL_H
 
 #include "objcache.h"
 #include <stdint.h>
@@ -40,4 +40,4 @@ typedef struct objc_cache {
   unsigned short slab_count;  // number of slabs created in the cache
 } objc_cache_t;
 
-#endif // !__OBJC_INTERNAL__
+#endif // !OBJC_INTERNAL_H
