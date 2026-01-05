@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 /*New slab has to be created in two cases:
- * i. When an object is being allocated for the first time. In this case, `cache->freebuf` is NULL since
+ * i. When an object is being allocated for the first time. In this case, `cache->freeslab` is NULL since
  * slab doesn't exist yet.
  * ii. When the previous slab is empty i.e. all buffers are allocated of the slab. In this case, a new slab
  * is created and a circular doubly linked list of a previous slabs is maintained.
