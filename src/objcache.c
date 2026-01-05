@@ -1,7 +1,15 @@
 #include "objcache.h"
 #include "objc_internal.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+int getobj_idx(objc_cache_t *cache, void *obj) {
+  void *slab_base = GET_SLABBASE(obj);
+  ptrdiff_t offset = obj - slab_base;
+  int index = offset / cache->buffer_size;
+  return index;
+}
 
 uint8_t *bm_create(objc_cache_t *cache) {
   int n = (cache->total_buf + 7) / 8;
