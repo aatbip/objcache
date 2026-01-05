@@ -1,10 +1,44 @@
 #include "objcache.h"
 #include "objc_internal.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+int getobj_idx(objc_cache_t *cache, void *obj) {
+  void *slab_base = GET_SLABBASE(obj);
+  ptrdiff_t offset = obj - slab_base;
+  int index = offset / cache->buffer_size;
+  return index;
+}
+
+uint8_t *bm_create(objc_cache_t *cache) {
+  int n = (cache->total_buf + 7) / 8;
+  uint8_t *bm_const = (uint8_t *)calloc(n, 1);
+  if (!bm_const)
+    return NULL;
+  return bm_const;
+}
+
+void bm_set(uint8_t *bm_const, int idx) {
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+  bm_const[byte_index] |= 1 << bit_offset;
+}
+
+void bm_clear(uint8_t *bm_const, int idx) {
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+  bm_const[byte_index] &= ~(1 << bit_offset);
+}
+
+int bm_get(uint8_t *bm_const, int idx) {
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+  return (bm_const[byte_index] >> bit_offset) & 1;
+}
+
 /*New slab has to be created in two cases:
- * i. When an object is being allocated for the first time. In this case, `cache->freebuf` is NULL since
+ * i. When an object is being allocated for the first time. In this case, `cache->freeslab` is NULL since
  * slab doesn't exist yet.
  * ii. When the previous slab is empty i.e. all buffers are allocated of the slab. In this case, a new slab
  * is created and a circular doubly linked list of a previous slabs is maintained.
@@ -35,13 +69,14 @@ static void *create_new_slab(objc_cache_t *cache) {
     } else {
       bufctl->next = (objc_bufctl_t *)next_bufctl;
     }
-    /*Initialize the constructed state.*/
-    bufctl->constructed = 0;
   }
 
   /* Initialize slab metadata */
   slabctl->ref_count = 0;
   slabctl->freebuf = ((objc_bufctl_t *)(start + cache->size));
+  slabctl->bm_const = bm_create(cache);
+  if (!slabctl->bm_const)
+    return NULL;
 
   if (!cache->free_slab) {
     /*Slab is being created first time. Both next and prev points to slabctl
@@ -164,16 +199,16 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
 /*This function runs the constructor to allocate the object into the slab buffer.*/
 void *objc_cache_alloc(objc_cache_t *cache) {
   void *obj = get_obj(cache);
-  objc_bufctl_t *bufctl = ((objc_bufctl_t *)((char *)obj + cache->size));
 
   if (!obj || !cache)
     return NULL;
 
-  if (bufctl->constructed != 1) {
+  int obj_index = getobj_idx(cache, obj);
+  if (bm_get(GET_SLABCTL(cache, cache->free_slab)->bm_const, obj_index) == 0) {
     // run the constructor if it was not ran before
     cache->c(obj, cache->size);
+    bm_set(GET_SLABCTL(cache, cache->free_slab)->bm_const, obj_index);
   }
-  bufctl->constructed = 1;
   return obj;
 }
 
@@ -237,7 +272,6 @@ void objc_free(objc_cache_t *cache, void *obj) {
   cache->free_slab = slab;
 }
 
-/*This function is incomplete!!*/
 void objc_cache_destroy(objc_cache_t *cache) {
   if (!cache->free_slab) {
     free(cache);
@@ -245,20 +279,23 @@ void objc_cache_destroy(objc_cache_t *cache) {
   }
 
   objc_slabctl_t *start = GET_SLABCTL(cache, cache->free_slab);
-  objc_slabctl_t *cur = start->next;
+  if (cache->slab_count > 1) {
+    objc_slabctl_t *cur = start->next;
 
-  // Break circularity
-  start->prev->next = NULL;
-  start->prev = NULL;
+    // Break circularity
+    start->prev->next = NULL;
+    start->prev = NULL;
 
-  // Free all slabs
-  while (cur) {
-    objc_slabctl_t *next = cur->next;
-    free(GET_SLABBASE(cur));
-    cur = next;
+    // Free all slabs and bitmaps for constructed state
+    while (cur) {
+      objc_slabctl_t *next = cur->next;
+      free(cur->bm_const);
+      free(GET_SLABBASE(cur));
+      cur = next;
+    }
   }
-
   // Free starting slab
+  free(start->bm_const);
   free(GET_SLABBASE(start));
   free(cache);
 }

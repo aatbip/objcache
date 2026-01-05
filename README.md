@@ -8,7 +8,7 @@ Jeff Bonwick. This is my basic attempt to implementing some of the very interest
 The allocator is written in the userspace for the userspace programs that has to frequently allocate and free many objects of same type.
 
 Features/optimizations that are yet to be worked on which I will be writing over the next few weeks: 
-* Optimize the `constructed` flag type in `objc_bufctl` struct by using a bit map
+* Optimize the `constructed` flag type in `objc_bufctl` struct by using a bit map -- Completed. Find the analysis [here](https://github.com/aatbip/objcache/pull/2).
 * Slab coloring
 * Large object optimization and small object validations
 * Memory reclamation 

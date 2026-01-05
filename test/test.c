@@ -1,6 +1,7 @@
 #include "objc_internal.h"
 #include "objcache.h"
 #include <assert.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,6 +14,31 @@ void c(void *p, size_t size) {
   test_t *q = p;
   q->x = 33;
   q->y = 22;
+}
+
+typedef struct test1 {
+  char t;
+  test_t r;
+} test_t1;
+
+void c1(void *p, size_t size) {
+  test_t1 *q = p;
+  q->t = 'y';
+  q->r.x = 22;
+  q->r.y = 22;
+  q->r.t = q->t;
+}
+
+typedef struct test_bm {
+  int x, y;
+} test_bm_t;
+
+static int total_c1_runs = 0;
+void c2(void *p, size_t size) {
+  test_bm_t *q = p;
+  q->x = 33;
+  q->y = 22;
+  total_c1_runs++;
 }
 
 static inline void objc_printf(objc_cache_t *cache) {
@@ -30,13 +56,17 @@ static inline void objc_printf(objc_cache_t *cache) {
 
 static void test_create_multiple_slabs(objc_cache_t *cache);
 static void test_slab_list(objc_cache_t *cache);
+static void test_slab_bm(objc_cache_t *cache);
 
 int main(void) {
   objc_cache_t *cache1 = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
   test_create_multiple_slabs(cache1);
 
-  objc_cache_t *cache2 = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
+  objc_cache_t *cache2 = objc_cache_create("rand1", sizeof(test_t1), 0, c1, NULL);
   test_slab_list(cache2);
+
+  objc_cache_t *cache3 = objc_cache_create("rand2", sizeof(test_bm_t), 0, c2, NULL);
+  test_slab_bm(cache3);
 
   return 0;
 }
@@ -194,4 +224,31 @@ static void test_slab_list(objc_cache_t *cache) {
   objc_printf(cache);
   objc_cache_destroy(cache);
   free(obj_slab1);
+}
+
+void test_slab_bm(objc_cache_t *cache) {
+  void **obj_arr = malloc(sizeof(void *) * cache->total_buf);
+  for (int i = 0; i < cache->total_buf; i++) {
+    void *obj = objc_cache_alloc(cache);
+    obj_arr[i] = obj;
+  }
+  assert(GET_SLABCTL(cache, cache->free_slab)->ref_count == cache->total_buf);
+  assert(GET_SLABCTL(cache, cache->free_slab)->freebuf == NULL);
+
+  int idx = 50; // let's free 50th buffer from the slab
+
+  objc_free(cache, obj_arr[idx]);
+  void *freed_obj = obj_arr[idx];
+  assert(((char *)freed_obj - (char *)GET_SLABBASE(freed_obj)) / cache->buffer_size == idx);
+
+  void *obj = objc_cache_alloc(cache);
+  assert(freed_obj == obj);
+
+  // constructor should run exactly `cache->total_buf` times if it doesn't run twice
+  assert(total_c1_runs == cache->total_buf);
+
+  printf("test_slab_bm() success\n");
+  objc_printf(cache);
+  objc_cache_destroy(cache);
+  free(obj_arr);
 }
