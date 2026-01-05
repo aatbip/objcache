@@ -69,8 +69,6 @@ static void *create_new_slab(objc_cache_t *cache) {
     } else {
       bufctl->next = (objc_bufctl_t *)next_bufctl;
     }
-    /*Initialize the constructed state.*/
-    bufctl->constructed = 0;
   }
 
   /* Initialize slab metadata */
@@ -201,16 +199,16 @@ objc_cache_t *objc_cache_create(char *name, size_t size, int align, constructor 
 /*This function runs the constructor to allocate the object into the slab buffer.*/
 void *objc_cache_alloc(objc_cache_t *cache) {
   void *obj = get_obj(cache);
-  objc_bufctl_t *bufctl = ((objc_bufctl_t *)((char *)obj + cache->size));
 
   if (!obj || !cache)
     return NULL;
 
-  if (bufctl->constructed != 1) {
+  int obj_index = getobj_idx(cache, obj);
+  if (bm_get(GET_SLABCTL(cache, cache->free_slab)->bm_const, obj_index) == 0) {
     // run the constructor if it was not ran before
     cache->c(obj, cache->size);
+    bm_set(GET_SLABCTL(cache, cache->free_slab)->bm_const, obj_index);
   }
-  bufctl->constructed = 1;
   return obj;
 }
 
