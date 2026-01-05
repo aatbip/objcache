@@ -19,6 +19,24 @@ uint8_t *bm_create(objc_cache_t *cache) {
   return bm_const;
 }
 
+void bm_set(uint8_t *bm_const, int idx) {
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+  bm_const[byte_index] |= 1 << bit_offset;
+}
+
+void bm_clear(uint8_t *bm_const, int idx) {
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+  bm_const[byte_index] &= ~(1 << bit_offset);
+}
+
+int bm_get(uint8_t *bm_const, int idx) {
+  int byte_index = idx / 8;
+  int bit_offset = idx % 8;
+  return (bm_const[byte_index] >> bit_offset) & 1;
+}
+
 /*New slab has to be created in two cases:
  * i. When an object is being allocated for the first time. In this case, `cache->freeslab` is NULL since
  * slab doesn't exist yet.
