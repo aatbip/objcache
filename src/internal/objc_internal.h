@@ -22,6 +22,7 @@ typedef struct __attribute__((__packed__)) objc_bufctl {
 typedef struct objc_slabctl {
   int ref_count;
   objc_bufctl_t *freebuf; // pointer to the bufctl
+  uint8_t *bm_const;      // pointer to the bitmap to track constructed state
   struct objc_slabctl *next;
   struct objc_slabctl *prev;
 } objc_slabctl_t;

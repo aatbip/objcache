@@ -3,6 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+uint8_t *bm_create(objc_cache_t *cache) {
+  int n = (cache->total_buf + 7) / 8;
+  uint8_t *bm_const = (uint8_t *)calloc(n, 1);
+  if (!bm_const)
+    return NULL;
+  return bm_const;
+}
+
 /*New slab has to be created in two cases:
  * i. When an object is being allocated for the first time. In this case, `cache->freeslab` is NULL since
  * slab doesn't exist yet.
@@ -42,6 +50,7 @@ static void *create_new_slab(objc_cache_t *cache) {
   /* Initialize slab metadata */
   slabctl->ref_count = 0;
   slabctl->freebuf = ((objc_bufctl_t *)(start + cache->size));
+  bm_create(cache);
 
   if (!cache->free_slab) {
     /*Slab is being created first time. Both next and prev points to slabctl
