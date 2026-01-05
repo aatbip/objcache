@@ -272,7 +272,6 @@ void objc_free(objc_cache_t *cache, void *obj) {
   cache->free_slab = slab;
 }
 
-/*This function is incomplete!!*/
 void objc_cache_destroy(objc_cache_t *cache) {
   if (!cache->free_slab) {
     free(cache);
@@ -280,20 +279,23 @@ void objc_cache_destroy(objc_cache_t *cache) {
   }
 
   objc_slabctl_t *start = GET_SLABCTL(cache, cache->free_slab);
-  objc_slabctl_t *cur = start->next;
+  if (cache->slab_count > 1) {
+    objc_slabctl_t *cur = start->next;
 
-  // Break circularity
-  start->prev->next = NULL;
-  start->prev = NULL;
+    // Break circularity
+    start->prev->next = NULL;
+    start->prev = NULL;
 
-  // Free all slabs
-  while (cur) {
-    objc_slabctl_t *next = cur->next;
-    free(GET_SLABBASE(cur));
-    cur = next;
+    // Free all slabs and bitmaps for constructed state
+    while (cur) {
+      objc_slabctl_t *next = cur->next;
+      free(cur->bm_const);
+      free(GET_SLABBASE(cur));
+      cur = next;
+    }
   }
-
   // Free starting slab
+  free(start->bm_const);
   free(GET_SLABBASE(start));
   free(cache);
 }
