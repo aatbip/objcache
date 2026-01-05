@@ -50,7 +50,9 @@ static void *create_new_slab(objc_cache_t *cache) {
   /* Initialize slab metadata */
   slabctl->ref_count = 0;
   slabctl->freebuf = ((objc_bufctl_t *)(start + cache->size));
-  bm_create(cache);
+  slabctl->bm_const = bm_create(cache);
+  if (!slabctl->bm_const)
+    return NULL;
 
   if (!cache->free_slab) {
     /*Slab is being created first time. Both next and prev points to slabctl
