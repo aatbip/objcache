@@ -16,12 +16,25 @@ void c(void *p, size_t size) {
   q->y = 22;
 }
 
+typedef struct test1 {
+  char t;
+  test_t r;
+} test_t1;
+
+void c1(void *p, size_t size) {
+  test_t1 *q = p;
+  q->t = 'y';
+  q->r.x = 22;
+  q->r.y = 22;
+  q->r.t = q->t;
+}
+
 typedef struct test_bm {
   int x, y;
 } test_bm_t;
 
 static int total_c1_runs = 0;
-void c1(void *p, size_t size) {
+void c2(void *p, size_t size) {
   test_bm_t *q = p;
   q->x = 33;
   q->y = 22;
@@ -49,10 +62,10 @@ int main(void) {
   objc_cache_t *cache1 = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
   test_create_multiple_slabs(cache1);
 
-  objc_cache_t *cache2 = objc_cache_create("rand", sizeof(test_t), 0, c, NULL);
+  objc_cache_t *cache2 = objc_cache_create("rand1", sizeof(test_t1), 0, c1, NULL);
   test_slab_list(cache2);
 
-  objc_cache_t *cache3 = objc_cache_create("rand", sizeof(test_bm_t), 0, c1, NULL);
+  objc_cache_t *cache3 = objc_cache_create("rand2", sizeof(test_bm_t), 0, c2, NULL);
   test_slab_bm(cache3);
 
   return 0;
